@@ -1,0 +1,228 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+    --bg: #0a0c10;
+    --bg2: #161922;
+    --border: #2a2d3a;
+    --text: #e0e0e0;
+    --muted: #888;
+    --blue: #60a5fa;
+    --green: #4ade80;
+    --red: #ef4444;
+    --yellow: #fbbf24;
+    --purple: #c084fc;
+}
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+}
+.app-container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 220px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+}
+.sidebar-header {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+}
+.logo { font-size: 18px; font-weight: 700; color: #fff; }
+.version {
+    font-size: 10px;
+    color: var(--muted);
+    background: #1a1d2a;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 8px;
+}
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+    transition: all 0.2s;
+}
+.nav-item:hover { background: #1a1d2a; color: var(--text); }
+input[name="nav"]:checked + .nav-item {
+    background: #1e3a5f;
+    color: var(--blue);
+    font-weight: 500;
+}
+.main-content {
+    margin-left: 220px;
+    flex: 1;
+    padding: 24px;
+    max-width: 1200px;
+}
+.page { display: none; }
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.page-header h2 { font-size: 20px; font-weight: 600; }
+.header-actions { display: flex; gap: 8px; }
+.card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+.card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+.form-group label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 13px;
+    transition: border-color 0.2s;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--blue);
+}
+.btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+.btn-primary { background: var(--blue); color: #000; }
+.btn-primary:hover { background: #93c5fd; }
+.btn-secondary {
+    background: #1a1d2a;
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: #2a2d3a; }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { background: #f87171; }
+.btn-group { display: flex; gap: 8px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.data-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #1a1d2a;
+}
+.data-table tr:hover { background: #0d1117; }
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+.status-online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-offline { background: var(--red); }
+.config-output {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--green);
+    max-height: 500px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.config-input {
+    width: 100%;
+    min-height: 150px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--green);
+    resize: vertical;
+}
+.port-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 8px;
+}
+.port-slot {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.port-slot:hover { border-color: var(--blue); background: #0d1520; }
+.port-slot.selected { border-color: var(--blue); background: #1a2a4a; }
+.port-num { font-size: 10px; color: var(--muted); font-family: monospace; }
+.port-vlan { font-size: 11px; font-weight: 600; margin-top: 4px; }
+.vlan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+.vlan-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+}
+.vlan-id { font-size: 20px; font-weight: 700; }
+.vlan-name { font-size: 13px; font-weight: 500; margin-top: 2px; }
+.vlan-subnet { font-size: 11px; color: var(--muted); font-family: monospace; margin-top: 8px; }
+.vlan-ports { font-size: 11px; color: var(--muted); margin-top: 4px; }
+@media (max-width: 768px) {
+    .sidebar { width: 60px; }
+    .sidebar-header h1, .nav-item span:not(.nav-icon) { display: none; }
+    .main-content { margin-left: 60px; }
+    .form-grid { grid-template-columns: 1fr; }
+}

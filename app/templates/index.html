@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetConfig - Network Device Manager</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">⚡ NetConfig</h1>
+                <span class="version">v1.0.0</span>
+            </div>
+            <div class="nav-links">
+                <input type="radio" name="nav" id="nav-devices" checked hidden>
+                <label for="nav-devices" class="nav-item active">
+                    <span class="nav-icon">🖥️</span> Devices
+                </label>
+                <input type="radio" name="nav" id="nav-config" hidden>
+                <label for="nav-config" class="nav-item">
+                    <span class="nav-icon">📄</span> Config
+                </label>
+                <input type="radio" name="nav" id="nav-diagram" hidden>
+                <label for="nav-diagram" class="nav-item">
+                    <span class="nav-icon">🗺️</span> Topology
+                </label>
+                <input type="radio" name="nav" id="nav-vlans" hidden>
+                <label for="nav-vlans" class="nav-item">
+                    <span class="nav-icon">🏷️</span> VLANs
+                </label>
+                <input type="radio" name="nav" id="nav-global" hidden>
+                <label for="nav-global" class="nav-item">
+                    <span class="nav-icon">🌐</span> Global
+                </label>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <!-- DEVICES PAGE -->
+            <section class="page page-devices">
+                <div class="page-header">
+                    <h2>Device Management</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="btn-connect">+ Connect Device</button>
+                        <button class="btn btn-secondary" id="btn-test-connection">Test</button>
+                        <button class="btn btn-secondary" id="btn-discover-unifi">Discover UniFi</button>
+                    </div>
+                </div>
+                <div class="card connection-form">
+                    <h3>New Connection</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Hostname</label>
+                            <input type="text" id="device-hostname" placeholder="switch-01">
+                        </div>
+                        <div class="form-group">
+                            <label>IP Address</label>
+                            <input type="text" id="device-ip" placeholder="192.168.1.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Device Type</label>
+                            <select id="device-type">
+                                <option value="cisco_ios">Cisco IOS</option>
+                                <option value="cisco_nxos">Cisco NX-OS</option>
+                                <option value="cisco_xe">Cisco IOS-XE</option>
+                                <option value="arista_eos">Arista EOS</option>
+                                <option value="juniper_junos">Juniper JunOS</option>
+                                <option value="hp_procurve">HP ProCurve</option>
+                                <option value="mikrotik_routeros">MikroTik RouterOS</option>
+                                <option value="unifi_switch">UniFi Switch</option>
+                                <option value="unifi_gateway">UniFi Gateway/UDM</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>SSH Port</label>
+                            <input type="number" id="device-port" value="22">
+                        </div>
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="device-username" placeholder="admin">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="device-password">
+                        </div>
+                        <div class="form-group">
+                            <label>Enable Secret</label>
+                            <input type="password" id="device-secret" placeholder="(optional)">
+                        </div>
+                    </div>
+                    <div id="unifi-settings" style="display:none; margin-top:16px; padding-top:16px; border-top:1px solid #2a2d3a;">
+                        <h4 style="color:#60a5fa; margin-bottom:12px;">UniFi Controller Settings</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Controller URL</label>
+                                <input type="text" id="unifi-url" placeholder="https://192.168.1.1">
+                            </div>
+                            <div class="form-group">
+                                <label>Site</label>
+                                <input type="text" id="unifi-site" value="default">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Connected Devices</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Status</th><th>Hostname</th><th>IP Address</th><th>Type</th><th>Platform</th><th>Uptime</th><th>Last Seen</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="device-table-body">
+                            <tr><td colspan="7" style="text-align:center;color:#666;">No devices connected. Add one above.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- CONFIG PAGE -->
+            <section class="page page-config">
+                <div class="page-header"><h2>Configuration Manager</h2></div>
+                <div class="card">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Device</label>
+                            <select id="config-device-select"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Action</label>
+                            <select id="config-action-select">
+                                <option>Pull Running Config</option>
+                                <option>Pull Startup Config</option>
+                                <option>Backup Config</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="btn-group" style="margin-top:12px;">
+                        <button class="btn btn-primary" id="btn-execute-config">Execute</button>
+                        <button class="btn btn-secondary" id="btn-diff-config">Diff</button>
+                        <button class="btn btn-secondary" id="btn-save-config">Save to File</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Configuration Output</h3>
+                    <pre id="config-output" class="config-output">No configuration loaded.</pre>
+                </div>
+                <div class="card">
+                    <h3>Push Configuration</h3>
+                    <textarea id="config-push-input" class="config-input" placeholder="Enter commands (one per line)..."></textarea>
+                    <div class="btn-group" style="margin-top:12px;">
+                        <button class="btn btn-danger" id="btn-push-config">⚠️ Push Config</button>
+                        <button class="btn btn-secondary" id="btn-validate-config">Validate</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TOPOLOGY PAGE -->
+            <section class="page page-diagram">
+                <div class="page-header">
+                    <h2>Network Topology</h2>
+                    <button class="btn btn-secondary" id="btn-refresh-diagram">🔄 Refresh</button>
+                </div>
+                <div class="card" style="padding:0;overflow:hidden;">
+                    <svg id="topology-svg" width="900" height="580" style="display:block;margin:auto;"></svg>
+                </div>
+            </section>
+
+            <!-- VLANS PAGE -->
+            <section class="page page-vlans">
+                <div class="page-header"><h2>VLAN Port Assignment</h2></div>
+                <div class="card">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Device</label>
+                            <select id="vlan-device-select"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Assign VLAN</label>
+                            <select id="vlan-assign-select" class="vlan-select-dropdown"></select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="btn-apply-vlan" style="margin-top:12px;">Apply to Selected Ports</button>
+                </div>
+                <div class="card">
+                    <h3>Port Map <span style="font-size:11px;color:#888;">(click to select)</span></h3>
+                    <div id="port-grid" class="port-grid"></div>
+                </div>
+                <div class="card">
+                    <h3>Current Assignments</h3>
+                    <table class="data-table">
+                        <thead><tr><th>Port</th><th>VLAN</th><th>Mode</th><th>Description</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="vlan-assignment-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- GLOBAL VLANS PAGE -->
+            <section class="page page-global">
+                <div class="page-header"><h2>Global VLAN Management</h2></div>
+                <div class="card">
+                    <h3>Create Global VLAN</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>VLAN ID</label>
+                            <input type="number" id="new-vlan-id" min="1" max="4094" placeholder="100">
+                        </div>
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="new-vlan-name" placeholder="Engineering">
+                        </div>
+                        <div class="form-group">
+                            <label>Subnet (CIDR)</label>
+                            <input type="text" id="new-vlan-subnet" placeholder="10.100.100.0/24">
+                        </div>
+                        <div class="form-group">
+                            <label>Gateway</label>
+                            <input type="text" id="new-vlan-gateway" placeholder="10.100.100.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <input type="text" id="new-vlan-description" placeholder="Engineering team">
+                        </div>
+                        <div class="form-group">
+                            <label>Deploy To</label>
+                            <select id="new-vlan-deploy">
+                                <option value="all">All Devices</option>
+                                <option value="cisco_arista">SSH Devices Only</option>
+                                <option value="unifi">UniFi Only</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="btn-group" style="margin-top:12px;">
+                        <button class="btn btn-primary" id="btn-create-vlan">Create & Deploy</button>
+                        <button class="btn btn-secondary" id="btn-preview-vlan">Preview</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Active VLANs</h3>
+                    <div id="vlan-grid" class="vlan-grid"></div>
+                </div>
+                <div class="card">
+                    <h3>Deployment Status</h3>
+                    <table class="data-table">
+                        <thead><tr><th>Device</th><th>VLANs</th><th>Last Sync</th><th>Status</th></tr></thead>
+                        <tbody id="deployment-status-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
