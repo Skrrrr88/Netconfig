@@ -70,19 +70,42 @@ A self-hosted network device management platform built with Flask, Docker, and R
 
 ### Prerequisites
 - Docker + Docker Compose
+- Python 3 (for key generation during setup)
 - Linux host on the same network as managed devices
 - UniFi local admin account (if managing UniFi devices)
 
-### Deploy
-
-```bash
+### First-Time Setup
+```
 git clone https://github.com/Skrrrr88/netconfig.git
 cd netconfig
+bash setup.sh
+```
 
-# Generate secrets
-python3 scripts/generate_secrets.py
+---
 
-# Start the stack
-docker compose up -d --build
+## Setup Script 
 
-# Access at http://localhost:5000
+| Step | What it does |
+|------|-------------|
+| 1 | Auto-generates encryption keys (SECRET_KEY + FERNET_KEY) |
+| 2 | Configures app port, SSH timeout, and worker count |
+| 3 | UniFi controller setup (URL, username, password) — or skip if not applicable |
+| 4 | Default SSH credentials for new devices |
+| 5 | Writes all settings to `.env` |
+| 6 | Optionally builds and launches the Docker stack |
+
+### Re-running Setup
+To reconfigure at any time, just run bash setup.sh again. It will regenerate keys and overwrite the .env file.
+
+    ⚠️ Warning: Re-running setup generates new encryption keys. If you already have devices saved, their stored passwords will become unreadable. Back up your .env file before re-running.
+
+--- 
+
+### Common Commands
+| Command | Description |
+|---------|-------------|
+| `sudo docker compose up -d` | Start NetConfig |
+| `sudo docker compose down` | Stop NetConfig |
+| `sudo docker compose logs -f` | View live logs |
+| `sudo docker compose up -d --build` | Rebuild after changes |
+| `sudo docker compose restart netconfig` | Restart app only |
