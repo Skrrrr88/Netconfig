@@ -226,3 +226,29 @@ input[name="nav"]:checked + .nav-item {
     .main-content { margin-left: 60px; }
     .form-grid { grid-template-columns: 1fr; }
 }
+
+/* SNMP Module */
+.snmp-card {
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+.snmp-card-label {
+    font-size: 11px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.snmp-card-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+}
+.snmp-card-bar {
+    background: #334155;
+    border-radius: 2px;
+    height: 4px;
+    overflow: hidden;
+}

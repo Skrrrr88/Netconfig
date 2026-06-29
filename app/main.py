@@ -27,12 +27,14 @@ def create_app(config_name=None):
     from app.routes.diagram import diagram_bp
     from app.routes.status import status_bp
     from app.routes.descriptions import desc_bp
+    from app.routes.snmp import snmp_bp
 
     app.register_blueprint(devices_bp, url_prefix='/api/devices')
     app.register_blueprint(config_bp, url_prefix='/api/config')
     app.register_blueprint(vlans_bp, url_prefix='/api/vlans')
     app.register_blueprint(status_bp, url_prefix='/api/devices/status')
     app.register_blueprint(desc_bp, url_prefix='/api/devices/descriptions')
+    app.register_blueprint(snmp_bp, url_prefix='/api/snmp')
     app.register_blueprint(diagram_bp, url_prefix='/api/diagram')
 
     @app.route('/')

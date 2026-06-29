@@ -9,7 +9,7 @@ FROM python:3.12-slim
 LABEL maintainer="Kyle Johnston" version="1.0.0"
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 openssh-client iputils-ping curl \
+    libssl3 openssh-client iputils-ping curl snmp \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -r -s /bin/bash netconfig \
     && mkdir -p /app/instance /app/logs /app/backups \

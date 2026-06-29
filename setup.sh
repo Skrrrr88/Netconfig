@@ -89,10 +89,44 @@ else
     UNIFI_PASS=""
     UNIFI_SITE="default"
 fi
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Step 4: SNMP Configuration (Optional)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  SNMP is used to monitor CPU, memory, temperature,"
+echo "  interface traffic, and hardware status."
+echo ""
+
+read -p "📡 Do you want to enable SNMP monitoring? (y/n) [y]: " HAS_SNMP
+HAS_SNMP=${HAS_SNMP:-y}
+
+if [[ "$HAS_SNMP" =~ ^[Yy]$ ]]; then
+    read -p "🔑 SNMP Community String [public]: " SNMP_COMMUNITY
+    SNMP_COMMUNITY=${SNMP_COMMUNITY:-public}
+
+    read -p "📋 SNMP Version (2c/3) [2c]: " SNMP_VERSION
+    SNMP_VERSION=${SNMP_VERSION:-2c}
+
+    read -p "🔌 SNMP Port [161]: " SNMP_PORT
+    SNMP_PORT=${SNMP_PORT:-161}
+
+    read -p "⏱️  SNMP Timeout in seconds : " SNMP_TIMEOUT_VAL
+    SNMP_TIMEOUT_VAL=${SNMP_TIMEOUT_VAL:-5}
+
+    read -p "🔄 SNMP Retries : " SNMP_RETRIES
+    SNMP_RETRIES=${SNMP_RETRIES:-2}
+else
+    SNMP_COMMUNITY="public"
+    SNMP_VERSION="2c"
+    SNMP_PORT="161"
+    SNMP_TIMEOUT_VAL="5"
+    SNMP_RETRIES="2"
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 4: Default SSH Credentials (Optional)"
+echo "  Step 5: Default SSH Credentials (Optional)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "  These are used as defaults when adding new devices."
@@ -110,7 +144,7 @@ DEFAULT_SSH_PORT=${DEFAULT_SSH_PORT:-22}
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 5: Writing Configuration"
+echo "  Step 6: Writing Configuration"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -141,6 +175,14 @@ UNIFI_SITE=${UNIFI_SITE}
 DEFAULT_SSH_USERNAME=${DEFAULT_SSH_USER}
 DEFAULT_SSH_PASSWORD=${DEFAULT_SSH_PASS}
 DEFAULT_SSH_PORT=${DEFAULT_SSH_PORT}
+
+# SNMP Configuration
+SNMP_COMMUNITY=${SNMP_COMMUNITY}
+SNMP_VERSION=${SNMP_VERSION}
+SNMP_PORT=${SNMP_PORT}
+SNMP_TIMEOUT=${SNMP_TIMEOUT_VAL}
+SNMP_RETRIES=${SNMP_RETRIES}
+
 ENVEOF
 
 echo "✅ .env file created"
@@ -151,7 +193,7 @@ echo "✅ Instance directory created"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 6: Build & Launch"
+echo "  Step 7: Build & Launch"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 

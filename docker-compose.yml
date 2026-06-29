@@ -1,6 +1,8 @@
 services:
   netconfig:
-    build: .
+    build: 
+      context: .
+      network: host
     container_name: netconfig-app
     restart: unless-stopped
     env_file: .env
@@ -8,6 +10,12 @@ services:
       - FLASK_ENV=production
       - DATABASE_URL=sqlite:////app/instance/netconfig.db
       - REDIS_URL=redis://localhost:6379/0
+      - SNMP_COMMUNITY=${SNMP_COMMUNITY:-public}
+      - SNMP_VERSION=${SNMP_VERSION:-2c}
+      - SNMP_PORT=${SNMP_PORT:-161}
+      - SNMP_TIMEOUT=${SNMP_TIMEOUT:-5}
+      - SNMP_RETRIES=${SNMP_RETRIES:-2}
+
     volumes:
       - app_data:/app/instance
       - app_logs:/app/logs

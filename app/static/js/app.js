@@ -102,6 +102,7 @@ class NetConfigApp {
         this.bindConfigEvents();
         this.bindVlanEvents();
         this.bindDiagramEvents();
+        this.bindSNMPEvents();
         this.loadDevices();
         this.loadVlans();
         document.querySelector('.page-devices').style.display = 'block';
@@ -124,6 +125,7 @@ class NetConfigApp {
                 if (radio.nextElementSibling) radio.nextElementSibling.classList.add('active');
                 if (id === 'diagram') self.refreshDiagram();
                 if (id === 'vlans') self.loadPortGrid();
+                if (id === 'snmp') { self.snmpPopulateDevices(); self.snmpLoadAlerts(); }
             });
         });
     }
@@ -797,7 +799,219 @@ class NetConfigApp {
             svg.appendChild(g);
         }
     }
+     // ===== SNMP MODULE =====
+
+    bindSNMPEvents() {
+        var self = this;
+        var pollBtn = document.getElementById('btn-snmp-poll');
+        if (pollBtn) pollBtn.addEventListener('click', function() { self.snmpPoll(); });
+
+        var clearBtn = document.getElementById('btn-clear-alerts');
+        if (clearBtn) clearBtn.addEventListener('click', function() { self.snmpClearAlerts(); });
+
+        var autoCheck = document.getElementById('snmp-auto-poll');
+        if (autoCheck) autoCheck.addEventListener('change', function() {
+            if (autoCheck.checked) {
+                self._snmpInterval = setInterval(function() { self.snmpPoll(); }, 30000);
+                Toast.info('SNMP auto-poll enabled (30s)');
+            } else {
+                clearInterval(self._snmpInterval);
+                Toast.info('SNMP auto-poll disabled');
+            }
+        });
+    }
+
+    async snmpPopulateDevices() {
+        var sel = document.getElementById('snmp-device-select');
+        if (!sel) return;
+        try {
+            var devs = await this.api.getDevices();
+            var html = '';
+            for (var i = 0; i < devs.length; i++) {
+                html += '<option value="' + devs[i].ip_address + '">' + devs[i].hostname + ' (' + devs[i].ip_address + ')</option>';
+            }
+            sel.innerHTML = html || '<option>No devices</option>';
+        } catch(e) {}
+    }
+
+    async snmpPoll() {
+        var sel = document.getElementById('snmp-device-select');
+        if (!sel || !sel.value) { Toast.error('Select a device'); return; }
+        var ip = sel.value;
+        Toast.info('Polling ' + ip + '...');
+
+        try {
+            var r = await this.api.request('/api/snmp/poll/' + ip);
+            if (!r.success) { Toast.error(r.error || 'Poll failed'); return; }
+
+            // CPU
+            var cpu = r.cpu;
+            var cpuEl = document.getElementById('snmp-cpu');
+            var cpuBar = document.getElementById('snmp-cpu-bar');
+            if (cpuEl) cpuEl.textContent = cpu !== null ? cpu + '%' : '—';
+            if (cpuBar && cpu !== null) {
+                cpuBar.style.width = cpu + '%';
+                cpuBar.style.background = cpu > 80 ? '#ef4444' : cpu > 60 ? '#facc15' : '#4ade80';
+            }
+
+            // Memory
+            var mem = r.memory;
+            var memEl = document.getElementById('snmp-mem');
+            var memBar = document.getElementById('snmp-mem-bar');
+            if (memEl) memEl.textContent = mem !== null ? mem + '%' : '—';
+            if (memBar && mem !== null) {
+                memBar.style.width = mem + '%';
+                memBar.style.background = mem > 85 ? '#ef4444' : mem > 70 ? '#facc15' : '#4ade80';
+            }
+
+            // Temperature
+            var temp = r.temperature;
+            var tempEl = document.getElementById('snmp-temp');
+            var tempBar = document.getElementById('snmp-temp-bar');
+            if (tempEl) tempEl.textContent = temp !== null ? temp + '°F' : '—';
+            if (tempBar && temp !== null) {
+                var pct = Math.min(100, (temp / 80) * 100);
+                tempBar.style.width = pct + '%';
+                tempBar.style.background = temp > 149 ? '#ef4444' : temp > 131 ? '#facc15' : '#4ade80';
+            }
+
+            // Uptime
+            var upEl = document.getElementById('snmp-uptime');
+            if (upEl) {
+                var ut = r.system.sysUptime || '';
+                if (ut && ut.match(/^\d+$/)) {
+                    var secs = Math.floor(parseInt(ut) / 100);
+                    var d = Math.floor(secs / 86400);
+                    var h = Math.floor((secs % 86400) / 3600);
+                    var m = Math.floor((secs % 3600) / 60);
+                    upEl.textContent = d + 'd ' + h + 'h ' + m + 'm';
+                } else {
+                    upEl.textContent = ut || '—';
+                }
+            }
+
+            // Interfaces
+            this.snmpRenderInterfaces(r.interfaces || []);
+
+            // System Info
+            this.snmpRenderSysInfo(r.system || {});
+
+            // Environment
+            this.snmpRenderEnvironment(r.environment || {}, temp);
+
+            // Alerts
+            this.snmpLoadAlerts();
+
+            // Last poll
+            var lp = document.getElementById('snmp-last-poll');
+            if (lp) lp.textContent = 'Last poll: ' + new Date().toLocaleTimeString();
+
+            Toast.success('SNMP poll complete');
+        } catch(e) {
+            Toast.error('Poll error: ' + e.message);
+        }
+    }
+
+    snmpRenderInterfaces(interfaces) {
+        var tbody = document.getElementById('snmp-interfaces-body');
+        if (!tbody) return;
+        if (!interfaces.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:12px;color:#666;">No interface data</td></tr>'; return; }
+
+        var html = '';
+        for (var i = 0; i < interfaces.length; i++) {
+            var iface = interfaces[i];
+            var statusColor = iface.status === 'up' ? '#4ade80' : '#ef4444';
+            var errColor = iface.errors > 0 ? '#facc15' : '#94a3b8';
+            html += '<tr style="border-bottom:1px solid #1e293b;">';
+            html += '<td style="padding:6px;">' + iface.interface + '</td>';
+            html += '<td style="padding:6px;text-align:right;color:#60a5fa;">' + iface.in_mbps.toFixed(2) + '</td>';
+            html += '<td style="padding:6px;text-align:right;color:#a78bfa;">' + iface.out_mbps.toFixed(2) + '</td>';
+            html += '<td style="padding:6px;text-align:right;color:' + errColor + ';">' + iface.errors + '</td>';
+            html += '<td style="padding:6px;text-align:right;color:#94a3b8;">' + (iface.speed || '—') + '</td>';
+            html += '<td style="padding:6px;text-align:center;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + statusColor + ';"></span> ' + iface.status + '</td>';
+            html += '</tr>';
+        }
+        tbody.innerHTML = html;
+    }
+
+    snmpRenderSysInfo(sys) {
+        var el = document.getElementById('snmp-sysinfo');
+        if (!el) return;
+        var html = '<table style="width:100%;font-size:12px;">';
+        var fields = [
+            ['sysName', sys.sysName],
+            ['sysDescr', sys.sysDescr],
+            ['sysLocation', sys.sysLocation],
+            ['sysContact', sys.sysContact],
+            ['Serial', sys.serial],
+            ['Firmware', sys.firmware],
+        ];
+        for (var i = 0; i < fields.length; i++) {
+            html += '<tr><td style="padding:4px 8px;color:#94a3b8;white-space:nowrap;">' + fields[i][0] + '</td>';
+            html += '<td style="padding:4px 8px;color:#f1f5f9;word-break:break-all;">' + (fields[i][1] || '—') + '</td></tr>';
+        }
+        html += '</table>';
+        el.innerHTML = html;
+    }
+
+    snmpRenderEnvironment(env, temp) {
+        var el = document.getElementById('snmp-environment');
+        if (!el) return;
+        var html = '';
+
+        var psus = env.psus || [];
+        for (var i = 0; i < psus.length; i++) {
+            var color = psus[i].status === 'OK' ? '#4ade80' : '#ef4444';
+            html += '<div style="padding:4px 0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:8px;"></span>PSU ' + psus[i].id + ': ' + psus[i].status + '</div>';
+        }
+
+        var fans = env.fans || [];
+        for (var i = 0; i < fans.length; i++) {
+            var color = fans[i].status === 'OK' ? '#4ade80' : '#ef4444';
+            html += '<div style="padding:4px 0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:8px;"></span>Fan ' + fans[i].id + ': ' + fans[i].status + '</div>';
+        }
+
+        if (temp !== null) {
+            var tColor = temp > 149 ? '#ef4444' : temp > 131 ? '#facc15' : '#4ade80';
+            html += '<div style="padding:4px 0;margin-top:8px;"><span style="color:' + tColor + ';font-weight:600;">' + temp + '°F</span> <span style="color:#94a3b8;">/ ' + Math.round(temp * 9/5 + 32) + '°F</span></div>';
+        }
+
+        el.innerHTML = html || '<div style="color:#666;">No environment data available</div>';
+    }
+
+    async snmpLoadAlerts() {
+        var tbody = document.getElementById('snmp-alerts-body');
+        if (!tbody) return;
+        try {
+            var r = await this.api.request('/api/snmp/alerts');
+            if (!r.success || !r.alerts.length) {
+                tbody.innerHTML = '<tr><td colspan="4" style="padding:12px;color:#666;">No alerts</td></tr>';
+                return;
+            }
+            var html = '';
+            var colors = {critical: '#ef4444', warning: '#facc15', info: '#4ade80'};
+            var labels = {critical: '● CRIT', warning: '● WARN', info: '● INFO'};
+            for (var i = 0; i < r.alerts.length; i++) {
+                var a = r.alerts[i];
+                var c = colors[a.severity] || '#94a3b8';
+                html += '<tr style="border-bottom:1px solid #1e293b;">';
+                html += '<td style="padding:4px 6px;color:#94a3b8;">' + a.time + '</td>';
+                html += '<td style="padding:4px 6px;color:' + c + ';font-weight:600;">' + (labels[a.severity] || a.severity) + '</td>';
+                html += '<td style="padding:4px 6px;">' + a.source + '</td>';
+                html += '<td style="padding:4px 6px;">' + a.message + '</td>';
+                html += '</tr>';
+            }
+            tbody.innerHTML = html;
+        } catch(e) {}
+    }
+
+    async snmpClearAlerts() {
+        await this.api.request('/api/snmp/alerts/clear', {method: 'POST'});
+        this.snmpLoadAlerts();
+        Toast.success('Alerts cleared');
+    }
 }
+
 
 var app = new NetConfigApp();
 app.init();

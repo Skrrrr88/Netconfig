@@ -34,7 +34,10 @@
                 <label for="nav-global" class="nav-item">
                     <span class="nav-icon">🌐</span> Global
                 </label>
-            </div>
+        		<input type="radio" name="nav" id="nav-snmp" hidden>
+        		<label class="nav-item" for="nav-snmp">📡 SNMP
+        		</label>
+             </div>
         </nav>
 
         <main class="main-content">
@@ -165,6 +168,104 @@
                     <svg id="topology-svg" width="900" height="580" style="display:block;margin:auto;"></svg>
                 </div>
             </section>
+
+            <!-- SNMP PAGE -->
+            <div class="page page-snmp" style="display:none;">
+                <h2>SNMP Monitor</h2>
+                <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+                    <select id="snmp-device-select" style="padding:8px 12px;background:#1e293b;color:#fff;border:1px solid #334155;border-radius:6px;font-size:14px;"></select>
+                    <button id="btn-snmp-poll" class="btn btn-primary" style="padding:8px 16px;">Poll Now</button>
+                    <label style="color:#aaa;font-size:12px;"><input type="checkbox" id="snmp-auto-poll" style="margin-right:4px;">Auto-poll (30s)</label>
+                    <span id="snmp-last-poll" style="color:#666;font-size:11px;margin-left:auto;">Last poll: never</span>
+                </div>
+
+                <!-- Metric Cards -->
+                <div id="snmp-metrics" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+                    <div class="snmp-card">
+                        <div class="snmp-card-label">CPU</div>
+                        <div class="snmp-card-value" id="snmp-cpu">—</div>
+                        <div class="snmp-card-bar"><div id="snmp-cpu-bar" style="width:0%;height:4px;border-radius:2px;background:#4ade80;"></div></div>
+                    </div>
+                    <div class="snmp-card">
+                        <div class="snmp-card-label">Memory</div>
+                        <div class="snmp-card-value" id="snmp-mem">—</div>
+                        <div class="snmp-card-bar"><div id="snmp-mem-bar" style="width:0%;height:4px;border-radius:2px;background:#4ade80;"></div></div>
+                    </div>
+                    <div class="snmp-card">
+                        <div class="snmp-card-label">Temperature</div>
+                        <div class="snmp-card-value" id="snmp-temp">—</div>
+                        <div class="snmp-card-bar"><div id="snmp-temp-bar" style="width:0%;height:4px;border-radius:2px;background:#4ade80;"></div></div>
+                    </div>
+                    <div class="snmp-card">
+                        <div class="snmp-card-label">Uptime</div>
+                        <div class="snmp-card-value" id="snmp-uptime">—</div>
+                    </div>
+                </div>
+
+                <!-- Interface Traffic -->
+                <div style="margin-bottom:20px;">
+                    <h3 style="margin-bottom:8px;color:#e2e8f0;">Interface Traffic</h3>
+                    <div style="overflow-x:auto;max-height:300px;overflow-y:auto;">
+                        <table id="snmp-interfaces-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+                            <thead>
+                                <tr style="border-bottom:1px solid #334155;position:sticky;top:0;background:#1e293b;">
+                                    <th style="padding:8px;text-align:left;">Interface</th>
+                                    <th style="padding:8px;text-align:right;">In (Mbps)</th>
+                                    <th style="padding:8px;text-align:right;">Out (Mbps)</th>
+                                    <th style="padding:8px;text-align:right;">Errors</th>
+                                    <th style="padding:8px;text-align:right;">Speed</th>
+                                    <th style="padding:8px;text-align:center;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="snmp-interfaces-body">
+                                <tr><td colspan="6" style="padding:12px;color:#666;">Poll a device to see traffic data</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- System Info + Environment -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                    <div>
+                        <h3 style="margin-bottom:8px;color:#e2e8f0;">System Information</h3>
+                        <div id="snmp-sysinfo" style="background:#1e293b;border-radius:8px;padding:12px;font-size:12px;">
+                            <div style="color:#666;">Poll a device to see system info</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="margin-bottom:8px;color:#e2e8f0;">Environment</h3>
+                        <div id="snmp-environment" style="background:#1e293b;border-radius:8px;padding:12px;font-size:12px;">
+                            <div style="color:#666;">Poll a device to see environment data</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts -->
+                <div>
+                    <div style="display:flex;align-items:center;margin-bottom:8px;">
+                        <h3 style="color:#e2e8f0;margin:0;">SNMP Alerts</h3>
+                        <button id="btn-clear-alerts" class="btn btn-secondary" style="margin-left:auto;padding:4px 12px;font-size:11px;">Clear</button>
+                    </div>
+                    <div style="overflow-y:auto;max-height:200px;">
+                        <table id="snmp-alerts-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+                            <thead>
+                                <tr style="border-bottom:1px solid #334155;position:sticky;top:0;background:#1e293b;">
+                                    <th style="padding:6px;text-align:left;width:70px;">Time</th>
+                                    <th style="padding:6px;text-align:left;width:80px;">Severity</th>
+                                    <th style="padding:6px;text-align:left;">Source</th>
+                                    <th style="padding:6px;text-align:left;">Message</th>
+                                </tr>
+                            </thead>
+                            <tbody id="snmp-alerts-body">
+                                <tr><td colspan="4" style="padding:12px;color:#666;">No alerts</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+</div>
+
+
+
 
             <!-- VLANS PAGE -->
             <section class="page page-vlans">
