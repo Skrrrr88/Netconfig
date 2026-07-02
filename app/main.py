@@ -1,7 +1,12 @@
+
+"""
+app/main.py - Updated with authentication
+"""
 import os
 import logging
-from flask import Flask, render_template, jsonify
-from app.extensions import db, cors
+from flask import Flask, render_template, jsonify, redirect, url_for
+from flask_login import login_required
+from app.extensions import db, cors, login_manager
 from app.config import config_map
 
 logging.basicConfig(
@@ -18,9 +23,32 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config_map.get(config_name, config_map['production']))
 
-    db.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
+    # Session config for remember-me
+    app.config['REMEMBER_COOKIE_DURATION'] = 604800  # 7 days
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+    # Initialize extensions
+    db.init_app(app)
+    cors.init_app(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    login_manager.init_app(app)
+
+    # User loader for Flask-Login
+    @login_manager.user_loader
+    def load_user(user_id):
+        from app.models import User
+        return User.query.get(int(user_id))
+
+    # Handle unauthorized API requests
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        from flask import request
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        return redirect(url_for('auth.login_page'))
+
+    # Register blueprints
+    from app.routes.auth import auth_bp
     from app.routes.devices import devices_bp
     from app.routes.config_manager import config_bp
     from app.routes.vlans import vlans_bp
@@ -29,6 +57,7 @@ def create_app(config_name=None):
     from app.routes.descriptions import desc_bp
     from app.routes.snmp import snmp_bp
 
+    app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(devices_bp, url_prefix='/api/devices')
     app.register_blueprint(config_bp, url_prefix='/api/config')
     app.register_blueprint(vlans_bp, url_prefix='/api/vlans')
@@ -38,6 +67,7 @@ def create_app(config_name=None):
     app.register_blueprint(diagram_bp, url_prefix='/api/diagram')
 
     @app.route('/')
+    @login_required
     def index():
         return render_template('index.html')
 
@@ -79,3 +109,4 @@ def make_celery(app=None):
 
     celery.Task = ContextTask
     return celery
+

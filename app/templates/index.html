@@ -38,6 +38,63 @@
         		<label class="nav-item" for="nav-snmp">📡 SNMP
         		</label>
              </div>
+            
+            <!-- Add this to your index.html navbar (after the existing nav items) -->
+            <!-- Insert inside your nav/header section -->
+
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+                <span id="current-user" style="color: #a1a1aa; font-size: 13px;"></span>
+                <button onclick="logout()" style="
+                    background: #dc2626;
+                    color: white;
+                    border: none;
+                    padding: 6px 14px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    cursor: pointer;
+                ">Logout</button>
+            </div>
+
+            <script>
+            // Add to your existing JavaScript in index.html
+
+            // Load current user info
+            async function loadCurrentUser() {
+                try {
+                    const res = await fetch('/auth/me');
+                    if (!res.ok) {
+                        window.location.href = '/auth/login';
+                        return;
+                    }
+                    const data = await res.json();
+                    document.getElementById('current-user').textContent =
+                        `${data.user.display_name} (${data.user.role})`;
+                } catch (e) {
+                    window.location.href = '/auth/login';
+                }
+            }
+
+            async function logout() {
+                await fetch('/auth/logout', { method: 'POST' });
+                window.location.href = '/auth/login';
+            }
+
+            // Call on page load
+            loadCurrentUser();
+
+            // Update your existing fetch calls to handle 401 responses
+            const originalFetch = window.fetch;
+            window.fetch = async function(...args) {
+                const response = await originalFetch(...args);
+                if (response.status === 401 && !args[0].includes('/auth/')) {
+                    window.location.href = '/auth/login';
+                }
+                return response;
+            };
+            </script>
+
+
         </nav>
 
         <main class="main-content">
@@ -140,7 +197,8 @@
                     </div>
                     <div class="btn-group" style="margin-top:12px;">
                         <button class="btn btn-primary" id="btn-execute-config">Execute</button>
-                        <button class="btn btn-secondary" id="btn-diff-config">Diff</button>
+                        <button class="btn btn-secondary" onclick="executeDiff()" title="Compare running vs startup config">Execute Diff</button>
+                        <button class="btn btn-secondary" onclick="loadConfigHistory(document.getElementById('config-device-select').value)" title="View backup history with diff options">History & Diff</button>
                         <button class="btn btn-secondary" id="btn-save-config">Save to File</button>
                     </div>
                 </div>

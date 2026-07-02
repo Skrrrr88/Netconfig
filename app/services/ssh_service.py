@@ -22,6 +22,7 @@ class SSHService:
 
     def __init__(self):
         self.connections = {}
+        self.manually_disconnected = set()
         
         self._lock = threading.Lock()
 

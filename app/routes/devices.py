@@ -1,3 +1,4 @@
+
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from app.extensions import db
@@ -5,6 +6,8 @@ from app.models import Device
 from app.services.ssh_service import ssh_service
 from app.services.unifi_service import UniFiService
 from cryptography.fernet import Fernet
+from flask_login import login_required, current_user
+from app.decorators import api_login_required, admin_required, operator_required, viewer_required
 import os
 import re
 import logging
@@ -41,7 +44,6 @@ def parse_device_info(output, device_type):
 
     # Cisco IOS/IOS-XE
     if 'cisco' in device_type:
-        # Platform
         match = re.search(r'(?:Cisco\s+)?(\S+\s*\S*)\s+(?:processor|Software)', output, re.IGNORECASE)
         model_match = re.search(r'[Mm]odel\s+[Nn]umber\s*:\s*(\S+)', output)
         hw_match = re.search(r'cisco\s+(\S+)', output, re.IGNORECASE)
@@ -49,8 +51,6 @@ def parse_device_info(output, device_type):
             info['platform'] = model_match.group(1)
         elif hw_match:
             info['platform'] = f"Cisco {hw_match.group(1)}"
-
-        # Uptime
         uptime_match = re.search(r'uptime is\s+(.+)', output, re.IGNORECASE)
         if uptime_match:
             info['uptime'] = uptime_match.group(1).strip()
@@ -89,12 +89,14 @@ def parse_device_info(output, device_type):
 
 
 @devices_bp.route('/', methods=['GET'])
+@api_login_required
 def list_devices():
     devices = Device.query.order_by(Device.hostname).all()
     return jsonify([d.to_dict() for d in devices])
 
 
 @devices_bp.route('/connect', methods=['POST'])
+@operator_required
 def connect_device():
     data = request.json
     if not data:
@@ -224,6 +226,7 @@ def connect_device():
 
 
 @devices_bp.route('/disconnect/<ip_address>', methods=['POST'])
+@operator_required
 def disconnect_device(ip_address):
     ssh_service.disconnect(ip_address)
     device = Device.query.filter_by(ip_address=ip_address).first()
@@ -239,6 +242,7 @@ def disconnect_device(ip_address):
 
 
 @devices_bp.route('/test', methods=['POST'])
+@operator_required
 def test_connection():
     data = request.json
     result = ssh_service.connect({
@@ -256,6 +260,7 @@ def test_connection():
 
 
 @devices_bp.route('/<int:device_id>', methods=['DELETE'])
+@admin_required
 def delete_device(device_id):
     device = Device.query.get_or_404(device_id)
     ssh_service.disconnect(device.ip_address)
@@ -265,6 +270,7 @@ def delete_device(device_id):
 
 
 @devices_bp.route('/interfaces/<ip_address>', methods=['GET'])
+@api_login_required
 def get_interfaces(ip_address):
     """Get interface/port information for a device."""
     device = Device.query.filter_by(ip_address=ip_address).first()
@@ -308,7 +314,6 @@ def get_unifi_interfaces(device):
             return jsonify({'success': False, 'error': 'No UniFi controller URL stored'}), 400
 
         # Get UniFi credentials from .env or from the device that discovered it
-        import os
         username = os.getenv('UNIFI_USERNAME', '')
         password = os.getenv('UNIFI_PASSWORD', '')
 
@@ -372,9 +377,8 @@ def get_unifi_interfaces(device):
         return jsonify({'success': False, 'error': str(e)})
 
 
-
-
 @devices_bp.route('/reconnect/<ip_address>', methods=['POST'])
+@operator_required
 def reconnect_device(ip_address):
     """Force reconnect to a device using stored credentials."""
     device = Device.query.filter_by(ip_address=ip_address).first()
@@ -408,7 +412,6 @@ def reconnect_device(ip_address):
                     hours = (uptime_sec % 86400) // 3600
                     device.uptime = f'{days}d {hours}h'
                 device.platform = f"UniFi {target.get('model', '')}"
-                from datetime import datetime
                 device.last_seen = datetime.utcnow()
                 db.session.commit()
                 return jsonify({'success': True, 'message': f'Reconnected to {device.hostname}', 'platform': device.platform, 'uptime': device.uptime})
@@ -423,8 +426,6 @@ def reconnect_device(ip_address):
         return jsonify({'success': False, 'error': 'No stored credentials. Please connect manually.'})
 
     # Decrypt password
-    import os
-    from cryptography.fernet import Fernet
     key = os.environ.get('FERNET_KEY', '')
     try:
         if key:
@@ -447,7 +448,6 @@ def reconnect_device(ip_address):
     if result.get('success'):
         device.is_online = True
         device.manually_disconnected = False
-        from datetime import datetime
         device.last_seen = datetime.utcnow()
         # Refresh platform/uptime
         try:
@@ -463,6 +463,7 @@ def reconnect_device(ip_address):
         db.session.commit()
 
     return jsonify(result)
+
 
 def parse_interfaces(output, device_type):
     """Parse interface status output into structured data."""
@@ -511,3 +512,4 @@ def parse_interfaces(output, device_type):
                 })
 
     return interfaces
+

@@ -1,0 +1,341 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetConfig - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e4e4e7;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: #1a1b23;
+            border: 1px solid #2a2b35;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .login-header .lightning {
+            color: #fbbf24;
+            font-size: 32px;
+        }
+
+        .login-header p {
+            color: #71717a;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #a1a1aa;
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            background: #0f1117;
+            border: 1px solid #2a2b35;
+            border-radius: 8px;
+            color: #e4e4e7;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #52525b;
+        }
+
+        .remember-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .remember-row label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #a1a1aa;
+            cursor: pointer;
+        }
+
+        .remember-row input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #3b82f6;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-login:hover {
+            background: #2563eb;
+        }
+
+        .btn-login:disabled {
+            background: #1e3a5f;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #1c1017;
+            border: 1px solid #7f1d1d;
+            color: #fca5a5;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .setup-notice {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #2a2b35;
+        }
+
+        .setup-notice p {
+            color: #71717a;
+            font-size: 13px;
+        }
+
+        .setup-notice a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .setup-notice a:hover {
+            text-decoration: underline;
+        }
+
+        /* Registration form (hidden by default) */
+        .register-form { display: none; }
+        .register-form.active { display: block; }
+        .login-form.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1><span class="lightning">⚡</span> NetConfig</h1>
+                <p id="form-subtitle">Sign in to manage your network</p>
+            </div>
+
+            <div class="error-message" id="error-msg"></div>
+
+            <!-- Login Form -->
+            <form class="login-form" id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Enter username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter password" required autocomplete="current-password">
+                </div>
+                <div class="remember-row">
+                    <label>
+                        <input type="checkbox" id="remember" name="remember">
+                        Remember me
+                    </label>
+                </div>
+                <button type="submit" class="btn-login" id="btn-login">Sign In</button>
+            </form>
+
+            <!-- Registration Form -->
+            <form class="register-form" id="register-form" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label for="reg-username">Username</label>
+                    <input type="text" id="reg-username" name="username" placeholder="Choose a username" required minlength="3">
+                </div>
+                <div class="form-group">
+                    <label for="reg-display-name">Display Name</label>
+                    <input type="text" id="reg-display-name" name="display_name" placeholder="Your display name">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Password</label>
+                    <input type="password" id="reg-password" name="password" placeholder="Min 8 characters" required minlength="8">
+                </div>
+                <div class="form-group">
+                    <label for="reg-confirm">Confirm Password</label>
+                    <input type="password" id="reg-confirm" name="confirm_password" placeholder="Confirm password" required>
+                </div>
+                <button type="submit" class="btn-login" id="btn-register">Create Account</button>
+            </form>
+
+            <div class="setup-notice" id="setup-notice">
+                <p id="toggle-text">First time? <a href="#" onclick="toggleForm(event)">Create admin account</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRegistering = false;
+
+        // Check if already logged in (don't follow redirects)
+        fetch('/auth/me', { redirect: 'manual' }).then(r => {
+            if (r.type === 'opaqueredirect') return; // not logged in, stay on login page
+            if (r.status === 200) return r.json().then(data => {
+                if (data.success) window.location.href = '/';
+            });
+        });
+
+
+        function toggleForm(e) {
+            e.preventDefault();
+            isRegistering = !isRegistering;
+            document.getElementById('login-form').classList.toggle('hidden', isRegistering);
+            document.getElementById('register-form').classList.toggle('active', isRegistering);
+            document.getElementById('form-subtitle').textContent = isRegistering
+                ? 'Create your admin account'
+                : 'Sign in to manage your network';
+            document.getElementById('toggle-text').innerHTML = isRegistering
+                ? 'Already have an account? <a href="#" onclick="toggleForm(event)">Sign in</a>'
+                : 'First time? <a href="#" onclick="toggleForm(event)">Create admin account</a>';
+            hideError();
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error-msg').style.display = 'none';
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            hideError();
+            const btn = document.getElementById('btn-login');
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+
+            try {
+                const res = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('username').value,
+                        password: document.getElementById('password').value,
+                        remember: document.getElementById('remember').checked,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.href = '/';
+                } else {
+                    showError(data.error || 'Login failed');
+                }
+            } catch (err) {
+                showError('Connection error. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            hideError();
+            const btn = document.getElementById('btn-register');
+            btn.disabled = true;
+            btn.textContent = 'Creating account...';
+
+            const password = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-confirm').value;
+
+            if (password !== confirm) {
+                showError('Passwords do not match');
+                btn.disabled = false;
+                btn.textContent = 'Create Account';
+                return;
+            }
+
+            try {
+                const res = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('reg-username').value,
+                        display_name: document.getElementById('reg-display-name').value,
+                        password: password,
+                        confirm_password: confirm,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.href = '/';
+                } else {
+                    showError(data.error || 'Registration failed');
+                }
+            } catch (err) {
+                showError('Connection error. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Create Account';
+            }
+        }
+    </script>
+</body>
+</html>
+

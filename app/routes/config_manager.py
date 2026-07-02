@@ -4,6 +4,8 @@ from app.models import Device, ConfigBackup
 from app.services.ssh_service import ssh_service
 import os
 import logging
+import difflib
+
 
 config_bp = Blueprint('config', __name__)
 logger = logging.getLogger(__name__)
@@ -279,3 +281,180 @@ def get_unifi_config_data(device):
     except Exception as e:
         logger.error(f"UniFi config pull error: {e}")
         return None
+
+
+
+
+
+@config_bp.route('/diff/<ip_address>', methods=['GET'])
+def diff_running_startup(ip_address):
+    """Compare running config vs startup config for a device."""
+    try:
+        device = Device.query.filter_by(ip_address=ip_address).first()
+        if not device:
+            return jsonify({'success': False, 'error': 'Device not found'}), 404
+
+        if 'unifi' in (device.device_type or ''):
+            return jsonify({'success': False, 'error': 'Diff not supported for UniFi devices (no startup config concept)'}), 400
+
+        # Pull both configs live
+        running = ssh_service.get_running_config(ip_address)
+        if not running.get('success'):
+            return jsonify({'success': False, 'error': f"Failed to pull running config: {running.get('error', 'Unknown')}"}), 400
+
+        startup = ssh_service.get_startup_config(ip_address)
+        if not startup.get('success'):
+            return jsonify({'success': False, 'error': f"Failed to pull startup config: {startup.get('error', 'Unknown')}"}), 400
+
+        # Store full configs for side-by-side display
+        running_full = running['config']
+        startup_full = startup['config']
+
+        # Generate unified diff
+        running_lines = running_full.splitlines(keepends=True)
+        startup_lines = startup_full.splitlines(keepends=True)
+
+        diff = list(difflib.unified_diff(
+            startup_lines,
+            running_lines,
+            fromfile='startup-config',
+            tofile='running-config',
+            lineterm=''
+        ))
+
+        has_changes = len(diff) > 0
+
+        return jsonify({
+            'success': True,
+            'has_changes': has_changes,
+            'summary': 'Changes detected between running and startup' if has_changes else 'Configs are identical',
+            'unified_diff': ''.join(diff) if diff else 'No differences found.',
+            'startup_config': startup_full,
+            'running_config': running_full,
+            'stats': {
+                'additions': sum(1 for line in diff if line.startswith('+') and not line.startswith('+++')),
+                'deletions': sum(1 for line in diff if line.startswith('-') and not line.startswith('---')),
+                'running_lines': len(running_lines),
+                'startup_lines': len(startup_lines),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Diff error for {ip_address}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+
+@config_bp.route('/diff/backups', methods=['POST'])
+def diff_backups():
+    """Compare two specific config backups by ID."""
+    try:
+        data = request.json
+        backup_id_a = data.get('backup_a')
+        backup_id_b = data.get('backup_b')
+
+        if not backup_id_a or not backup_id_b:
+            return jsonify({'success': False, 'error': 'Two backup IDs required (backup_a, backup_b)'}), 400
+
+        backup_a = ConfigBackup.query.get(backup_id_a)
+        backup_b = ConfigBackup.query.get(backup_id_b)
+
+        if not backup_a:
+            return jsonify({'success': False, 'error': f'Backup {backup_id_a} not found'}), 404
+        if not backup_b:
+            return jsonify({'success': False, 'error': f'Backup {backup_id_b} not found'}), 404
+
+        # Generate unified diff
+        lines_a = backup_a.config_text.splitlines(keepends=True)
+        lines_b = backup_b.config_text.splitlines(keepends=True)
+
+        from_label = f"{backup_a.config_type} ({backup_a.created_at.strftime('%Y-%m-%d %H:%M')})"
+        to_label = f"{backup_b.config_type} ({backup_b.created_at.strftime('%Y-%m-%d %H:%M')})"
+
+        diff = list(difflib.unified_diff(
+            lines_a,
+            lines_b,
+            fromfile=from_label,
+            tofile=to_label,
+            lineterm=''
+        ))
+
+        has_changes = len(diff) > 0
+
+        return jsonify({
+            'success': True,
+            'has_changes': has_changes,
+            'summary': f"Comparing {from_label} → {to_label}",
+            'unified_diff': ''.join(diff) if diff else 'No differences found.',
+            'stats': {
+                'additions': sum(1 for line in diff if line.startswith('+') and not line.startswith('+++')),
+                'deletions': sum(1 for line in diff if line.startswith('-') and not line.startswith('---')),
+                'lines_a': len(lines_a),
+                'lines_b': len(lines_b),
+            },
+            'backup_a': backup_a.to_dict(),
+            'backup_b': backup_b.to_dict(),
+        })
+
+    except Exception as e:
+        logger.error(f"Backup diff error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+### CONFIG DIFF: Current vs Backup
+@config_bp.route('/diff/current-vs-backup/<ip_address>/<int:backup_id>', methods=['GET'])
+def diff_current_vs_backup(ip_address, backup_id):
+    """Compare current running config against a specific backup."""
+    try:
+        device = Device.query.filter_by(ip_address=ip_address).first()
+        if not device:
+            return jsonify({'success': False, 'error': 'Device not found'}), 404
+
+        backup = ConfigBackup.query.get(backup_id)
+        if not backup:
+            return jsonify({'success': False, 'error': 'Backup not found'}), 404
+
+        # Pull current config
+        if 'unifi' in (device.device_type or ''):
+            current_text = get_unifi_config_data(device)
+            if not current_text:
+                return jsonify({'success': False, 'error': 'Failed to pull current UniFi config'}), 400
+        else:
+            result = ssh_service.get_running_config(ip_address)
+            if not result.get('success'):
+                return jsonify({'success': False, 'error': f"Failed to pull running config: {result.get('error', 'Unknown')}"}), 400
+            current_text = result['config']
+
+        # Generate diff
+        backup_lines = backup.config_text.splitlines(keepends=True)
+        current_lines = current_text.splitlines(keepends=True)
+
+        from_label = f"Backup ({backup.config_type} - {backup.created_at.strftime('%Y-%m-%d %H:%M')})"
+        to_label = "Current Running Config"
+
+        diff = list(difflib.unified_diff(
+            backup_lines,
+            current_lines,
+            fromfile=from_label,
+            tofile=to_label,
+            lineterm=''
+        ))
+
+        has_changes = len(diff) > 0
+
+        return jsonify({
+            'success': True,
+            'has_changes': has_changes,
+            'summary': f"{'Changes detected' if has_changes else 'No changes'} since {backup.created_at.strftime('%Y-%m-%d %H:%M')}",
+            'unified_diff': ''.join(diff) if diff else 'No differences found.',
+            'stats': {
+                'additions': sum(1 for line in diff if line.startswith('+') and not line.startswith('+++')),
+                'deletions': sum(1 for line in diff if line.startswith('-') and not line.startswith('---')),
+                'backup_lines': len(backup_lines),
+                'current_lines': len(current_lines),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Current vs backup diff error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+

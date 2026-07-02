@@ -252,3 +252,148 @@ input[name="nav"]:checked + .nav-item {
     height: 4px;
     overflow: hidden;
 }
+
+
+
+/* ============================================================
+   CONFIG MANAGER BUTTON DARK THEME FIX
+   Add this to the bottom of static/css/style.css
+   ============================================================ */
+
+/* All secondary buttons in the config manager section */
+#config-section button,
+.config-actions button,
+.config-manager button {
+    background: #1e1f2a;
+    color: #e4e4e7;
+    border: 1px solid #3a3b45;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+#config-section button:hover,
+.config-actions button:hover,
+.config-manager button:hover {
+    background: #2a2b38;
+    border-color: #4a4b55;
+    color: #ffffff;
+}
+
+/* Primary action button (Execute) - keep it blue */
+#config-section button.btn-primary,
+#config-section button[onclick*="executeConfig"],
+.config-actions button:first-child {
+    background: #3b82f6;
+    color: #ffffff;
+    border: 1px solid #3b82f6;
+}
+
+#config-section button.btn-primary:hover,
+#config-section button[onclick*="executeConfig"]:hover,
+.config-actions button:first-child:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+/* Execute Diff button - subtle purple accent */
+#config-section button[onclick*="executeDiff"],
+button[onclick*="executeDiff"] {
+    background: #1e1f2a;
+    color: #a78bfa;
+    border: 1px solid #7c3aed40;
+}
+
+#config-section button[onclick*="executeDiff"]:hover,
+button[onclick*="executeDiff"]:hover {
+    background: #7c3aed20;
+    border-color: #7c3aed;
+    color: #c4b5fd;
+}
+
+/* History & Diff button */
+#config-section button[onclick*="History"],
+#config-section button[onclick*="loadConfigHistory"],
+button[onclick*="loadConfigHistory"] {
+    background: #1e1f2a;
+    color: #38bdf8;
+    border: 1px solid #0ea5e940;
+}
+
+#config-section button[onclick*="History"]:hover,
+#config-section button[onclick*="loadConfigHistory"]:hover,
+button[onclick*="loadConfigHistory"]:hover {
+    background: #0ea5e920;
+    border-color: #0ea5e9;
+    color: #7dd3fc;
+}
+
+/* Save to File button */
+#config-section button[onclick*="saveToFile"],
+button[onclick*="saveToFile"] {
+    background: #1e1f2a;
+    color: #4ade80;
+    border: 1px solid #22c55e40;
+}
+
+#config-section button[onclick*="saveToFile"]:hover,
+button[onclick*="saveToFile"]:hover {
+    background: #22c55e20;
+    border-color: #22c55e;
+    color: #86efac;
+}
+
+/* Push Config button - keep it red/danger */
+button[onclick*="pushConfig"],
+button.btn-danger {
+    background: #dc2626;
+    color: #ffffff;
+    border: 1px solid #dc2626;
+}
+
+button[onclick*="pushConfig"]:hover,
+button.btn-danger:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+/* Validate button */
+button[onclick*="validateConfig"],
+button.btn-validate {
+    background: #1e1f2a;
+    color: #fbbf24;
+    border: 1px solid #f59e0b40;
+}
+
+button[onclick*="validateConfig"]:hover,
+button.btn-validate:hover {
+    background: #f59e0b20;
+    border-color: #f59e0b;
+    color: #fcd34d;
+}
+
+/* Diff output section styling */
+.diff-header {
+    margin-bottom: 12px;
+    padding: 10px;
+    background: #1e1f2a;
+    border-radius: 6px;
+    border: 1px solid #2a2b35;
+}
+
+.diff-tab {
+    padding: 4px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.diff-tab.active {
+    background: #3b82f6 !important;
+    color: white !important;
+}
+

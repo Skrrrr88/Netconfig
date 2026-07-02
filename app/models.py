@@ -1,5 +1,40 @@
 from datetime import datetime
 from app.extensions import db
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timezone
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(256), nullable=False)
+    display_name = db.Column(db.String(100))
+    role = db.Column(db.String(20), default='operator')  # admin, operator, viewer
+    is_active = db.Column(db.Boolean, default=True)
+    last_login = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password, method='scrypt')
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def update_last_login(self):
+        self.last_login = datetime.now(timezone.utc)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'display_name': self.display_name,
+            'role': self.role,
+            'is_active': self.is_active,
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class Device(db.Model):

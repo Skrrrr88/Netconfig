@@ -1,3 +1,4 @@
+
 /**
  * NetConfig - Network Device Management Frontend
  */
@@ -42,7 +43,6 @@ class NetConfigAPI {
     getDeploymentStatus() { return this.request('/api/vlans/deployment-status'); }
     getInterfaces(ip) { return this.request('/api/devices/interfaces/' + ip); }
     deleteDevice(id) { return this.request('/api/devices/' + id, { method: 'DELETE' }); }
-    reconnectDevice(ip) { return this.request('/api/devices/reconnect/' + ip, { method: 'POST' }); }
     reconnectDevice(ip) { return this.request('/api/devices/reconnect/' + ip, { method: 'POST' }); }
     checkAllStatus() { return this.request('/api/devices/status'); }
     getDescriptions(ip) { return this.request("/api/devices/descriptions/" + ip); }
@@ -109,7 +109,6 @@ class NetConfigApp {
         Toast.info('NetConfig ready — connect a device to get started');
         var _s = this; _s.refreshStatus(); setInterval(function(){_s.refreshStatus();}, 30000);
         setInterval(function(){ _s.tickLastSeen(); }, 1000);
-        // Auto-load ports if devices exist
         setTimeout(function() { self.loadPortGrid(); }, 500);
     }
 
@@ -334,6 +333,14 @@ class NetConfigApp {
         return sec + 's ago';
     }
 
+    tickLastSeen() {
+        var self = this;
+        document.querySelectorAll('[id^="ls-"]').forEach(function(el) {
+            var t = el.getAttribute('data-time');
+            if (t) el.textContent = self.timeAgo(t);
+        });
+    }
+
     async refreshStatus() {
         try {
             var st = await this.api.checkAllStatus();
@@ -362,7 +369,6 @@ class NetConfigApp {
         } catch (e) { Toast.error(e.message); }
     }
 
-
     async handleDeleteDevice(id) {
         if (!confirm('Delete this device permanently?')) return;
         try {
@@ -388,13 +394,12 @@ class NetConfigApp {
             options += '<option value="' + d.ip_address + '">' + d.hostname + ' (' + d.ip_address + ')</option>';
         }
         if (!options) options = '<option>No devices</option>';
-        
+
         var selects = ['config-device-select', 'vlan-device-select'];
         for (var j = 0; j < selects.length; j++) {
             var el = document.getElementById(selects[j]);
             if (el) el.innerHTML = options;
         }
-        // Auto-load port grid if VLANs page is visible
         var vlansPage = document.querySelector('.page-vlans');
         if (vlansPage && vlansPage.style.display !== 'none') {
             this.loadPortGrid();
@@ -529,14 +534,12 @@ class NetConfigApp {
         var container = document.getElementById('port-grid');
         if (!container) return;
         var ip = (document.getElementById('vlan-device-select') || {}).value;
-        // If dropdown is empty or invalid, try to get first online device
         if (!ip || ip === 'No devices' || ip === '') {
             try {
                 var devs = await this.api.getDevices();
                 if (devs && devs.length > 0) {
                     var onlineDev = devs.find(function(d) { return d.is_online; }) || devs[0];
                     ip = onlineDev.ip_address;
-                    // Also populate the dropdown
                     var sel = document.getElementById('vlan-device-select');
                     if (sel) {
                         var opts = '';
@@ -572,8 +575,6 @@ class NetConfigApp {
                     html += '<td style="padding:6px;color:#aaa;">' + (desc || '<em>none</em>') + '</td>';
                     html += '<td style="padding:6px;text-align:center;">';
                     html += '<button class="btn-edit-desc" data-ip="' + ip + '" data-port="' + iface.port + '" data-desc="' + desc + '" style="background:#3b82f6;border:none;color:#fff;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">Edit</button>';
-                    html += '</td>';
-                    html += '<td style="padding:6px;text-align:center;">';
                     html += '</td>';
                     html += '</tr>';
                 }
@@ -799,7 +800,8 @@ class NetConfigApp {
             svg.appendChild(g);
         }
     }
-     // ===== SNMP MODULE =====
+
+    // ===== SNMP MODULE =====
 
     bindSNMPEvents() {
         var self = this;
@@ -844,7 +846,6 @@ class NetConfigApp {
             var r = await this.api.request('/api/snmp/poll/' + ip);
             if (!r.success) { Toast.error(r.error || 'Poll failed'); return; }
 
-            // CPU
             var cpu = r.cpu;
             var cpuEl = document.getElementById('snmp-cpu');
             var cpuBar = document.getElementById('snmp-cpu-bar');
@@ -854,7 +855,6 @@ class NetConfigApp {
                 cpuBar.style.background = cpu > 80 ? '#ef4444' : cpu > 60 ? '#facc15' : '#4ade80';
             }
 
-            // Memory
             var mem = r.memory;
             var memEl = document.getElementById('snmp-mem');
             var memBar = document.getElementById('snmp-mem-bar');
@@ -864,7 +864,6 @@ class NetConfigApp {
                 memBar.style.background = mem > 85 ? '#ef4444' : mem > 70 ? '#facc15' : '#4ade80';
             }
 
-            // Temperature
             var temp = r.temperature;
             var tempEl = document.getElementById('snmp-temp');
             var tempBar = document.getElementById('snmp-temp-bar');
@@ -875,7 +874,6 @@ class NetConfigApp {
                 tempBar.style.background = temp > 149 ? '#ef4444' : temp > 131 ? '#facc15' : '#4ade80';
             }
 
-            // Uptime
             var upEl = document.getElementById('snmp-uptime');
             if (upEl) {
                 var ut = r.system.sysUptime || '';
@@ -890,19 +888,11 @@ class NetConfigApp {
                 }
             }
 
-            // Interfaces
             this.snmpRenderInterfaces(r.interfaces || []);
-
-            // System Info
             this.snmpRenderSysInfo(r.system || {});
-
-            // Environment
             this.snmpRenderEnvironment(r.environment || {}, temp);
-
-            // Alerts
             this.snmpLoadAlerts();
 
-            // Last poll
             var lp = document.getElementById('snmp-last-poll');
             if (lp) lp.textContent = 'Last poll: ' + new Date().toLocaleTimeString();
 
@@ -1013,5 +1003,450 @@ class NetConfigApp {
 }
 
 
+// ============================================================
+// CONFIG DIFF FUNCTIONS (standalone, outside the class)
+// ============================================================
+
+function showNotification(msg, type) {
+    if (type === 'error') Toast.error(msg);
+    else if (type === 'warning') Toast.warning(msg);
+    else if (type === 'success') Toast.success(msg);
+    else Toast.info(msg);
+}
+
+async function executeDiff() {
+    const deviceSelect = document.getElementById('config-device-select');
+    const ip = deviceSelect ? deviceSelect.value : null;
+
+    if (!ip) {
+        Toast.warning('Select a device first');
+        return;
+    }
+
+    const outputEl = document.getElementById('config-output');
+    if (outputEl) {
+        outputEl.innerHTML = '<span style="color: #a1a1aa;">Pulling configs and generating diff...</span>';
+    }
+
+    try {
+        const res = await fetch(`/api/config/diff/${ip}`);
+        const data = await res.json();
+
+        if (!data.success) {
+            if (data.error && data.error.includes('UniFi')) {
+                Toast.warning('Diff not available for UniFi devices (no startup config)');
+            } else {
+                Toast.error(data.error || 'Diff failed');
+            }
+            if (outputEl) outputEl.textContent = data.error || 'Diff failed';
+            return;
+        }
+
+        renderDiffOutput(data, outputEl);
+
+    } catch (err) {
+        Toast.error('Connection error');
+        if (outputEl) outputEl.textContent = 'Error: ' + err.message;
+    }
+}
+
+async function diffBackups(backupIdA, backupIdB) {
+    const outputEl = document.getElementById('config-output');
+    if (outputEl) {
+        outputEl.innerHTML = '<span style="color: #a1a1aa;">Comparing backups...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/config/diff/backups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ backup_a: backupIdA, backup_b: backupIdB }),
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            Toast.error(data.error || 'Diff failed');
+            if (outputEl) outputEl.textContent = data.error || 'Diff failed';
+            return;
+        }
+
+        renderDiffOutput(data, outputEl);
+
+    } catch (err) {
+        Toast.error('Connection error');
+        if (outputEl) outputEl.textContent = 'Error: ' + err.message;
+    }
+}
+
+async function diffCurrentVsBackup(ip, backupId) {
+    const outputEl = document.getElementById('config-output');
+    if (outputEl) {
+        outputEl.innerHTML = '<span style="color: #a1a1aa;">Comparing current config against backup...</span>';
+    }
+
+    try {
+        const res = await fetch(`/api/config/diff/current-vs-backup/${ip}/${backupId}`);
+        const data = await res.json();
+
+        if (!data.success) {
+            Toast.error(data.error || 'Diff failed');
+            if (outputEl) outputEl.textContent = data.error || 'Diff failed';
+            return;
+        }
+
+        renderDiffOutput(data, outputEl);
+
+    } catch (err) {
+        Toast.error('Connection error');
+        if (outputEl) outputEl.textContent = 'Error: ' + err.message;
+    }
+}
+
+
+function renderDiffOutput(data, outputEl) {
+    if (!outputEl) return;
+
+    const stats = data.stats || {};
+    const additions = stats.additions || 0;
+    const deletions = stats.deletions || 0;
+
+    window._currentDiffData = data;
+
+    let html = `<div style="margin-bottom: 12px; padding: 10px; background: #1e1f2a; border-radius: 6px; border: 1px solid #2a2b35;">`;
+    html += `<span style="font-weight: 600; color: #e4e4e7;">${data.summary}</span><br>`;
+    html += `<span style="color: #4ade80; font-size: 13px;">+${additions} additions</span>`;
+    html += `<span style="color: #71717a; margin: 0 8px;">|</span>`;
+    html += `<span style="color: #f87171; font-size: 13px;">-${deletions} deletions</span>`;
+    html += `</div>`;
+
+    if (!data.has_changes) {
+        html += `<div style="padding: 20px; text-align: center; color: #4ade80;">✓ Configurations are identical</div>`;
+        outputEl.innerHTML = html;
+        return;
+    }
+
+    // Toggle buttons
+    html += `<div style="margin-bottom: 10px;">`;
+    html += `<button onclick="showUnifiedDiff()" id="btn-unified" style="padding: 4px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 6px;">Unified</button>`;
+    html += `<button onclick="showSideBySide()" id="btn-sidebyside" style="padding: 4px 12px; background: #2a2b35; color: #a1a1aa; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Side-by-Side</button>`;
+    html += `</div>`;
+
+    // Unified diff view (default)
+    html += `<div id="diff-unified" style="display: block;">`;
+    html += `<pre style="margin: 0; padding: 12px; background: #0f1117; border: 1px solid #2a2b35; border-radius: 6px; overflow-x: auto; font-size: 12px; line-height: 1.6; max-height: 600px; overflow-y: auto;">`;
+
+    const lines = data.unified_diff.split('\n');
+    for (const line of lines) {
+        if (line.startsWith('+++') || line.startsWith('---')) {
+            html += `<span style="color: #a78bfa; font-weight: 600;">${escapeHtml(line)}</span>\n`;
+        } else if (line.startsWith('@@')) {
+            html += `<span style="color: #38bdf8;">${escapeHtml(line)}</span>\n`;
+        } else if (line.startsWith('+')) {
+            html += `<span style="color: #4ade80; background: rgba(74, 222, 128, 0.08);">${escapeHtml(line)}</span>\n`;
+        } else if (line.startsWith('-')) {
+            html += `<span style="color: #f87171; background: rgba(248, 113, 113, 0.08);">${escapeHtml(line)}</span>\n`;
+        } else {
+            html += `<span style="color: #a1a1aa;">${escapeHtml(line)}</span>\n`;
+        }
+    }
+    html += `</pre></div>`;
+
+    // Side-by-side view
+    html += `<div id="diff-sidebyside" style="display: none;">`;
+    html += buildSideBySideHtml(data.unified_diff, data.startup_config || data.backup_config, data.running_config || data.current_config);
+    html += `</div>`;
+
+    outputEl.innerHTML = html;
+}
+
+
+function buildSideBySideHtml(unifiedDiff, leftConfig, rightConfig) {
+    if (leftConfig && rightConfig) {
+        return buildFullSideBySide(leftConfig, rightConfig);
+    }
+    return buildDiffOnlySideBySide(unifiedDiff);
+}
+
+
+function buildFullSideBySide(leftConfig, rightConfig) {
+    const leftLines = leftConfig.split('\n');
+    const rightLines = rightConfig.split('\n');
+    const opcodes = computeOpcodes(leftLines, rightLines);
+
+    let html = `<div style="overflow-x: auto; border: 1px solid #2a2b35; border-radius: 6px; max-height: 600px; overflow-y: auto;">`;
+    html += `<table style="width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; table-layout: fixed;">`;
+    html += `<colgroup><col style="width:3%"><col style="width:47%"><col style="width:3%"><col style="width:47%"></colgroup>`;
+    html += `<thead style="position: sticky; top: 0; z-index: 1;"><tr>`;
+    html += `<th colspan="2" style="padding: 8px 12px; background: #1e1f2a; color: #f87171; border-bottom: 1px solid #2a2b35; border-right: 1px solid #2a2b35; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">← Startup / Backup</th>`;
+    html += `<th colspan="2" style="padding: 8px 12px; background: #1e1f2a; color: #4ade80; border-bottom: 1px solid #2a2b35; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">→ Running / Current</th>`;
+    html += `</tr></thead><tbody>`;
+
+    for (const [tag, i1, i2, j1, j2] of opcodes) {
+        if (tag === 'equal') {
+            for (let i = i1; i < i2; i++) {
+                const j = j1 + (i - i1);
+                html += buildRow(i + 1, leftLines[i], 'ctx', j + 1, rightLines[j], 'ctx');
+            }
+        } else if (tag === 'replace') {
+            const maxLen = Math.max(i2 - i1, j2 - j1);
+            for (let k = 0; k < maxLen; k++) {
+                const li = i1 + k;
+                const rj = j1 + k;
+                html += buildRow(
+                    li < i2 ? li + 1 : '', li < i2 ? leftLines[li] : '', li < i2 ? 'del' : 'empty',
+                    rj < j2 ? rj + 1 : '', rj < j2 ? rightLines[rj] : '', rj < j2 ? 'add' : 'empty'
+                );
+            }
+        } else if (tag === 'delete') {
+            for (let i = i1; i < i2; i++) {
+                html += buildRow(i + 1, leftLines[i], 'del', '', '', 'empty');
+            }
+        } else if (tag === 'insert') {
+            for (let j = j1; j < j2; j++) {
+                html += buildRow('', '', 'empty', j + 1, rightLines[j], 'add');
+            }
+        }
+    }
+
+    html += `</tbody></table></div>`;
+    return html;
+}
+
+
+function buildDiffOnlySideBySide(unifiedDiff) {
+    const lines = unifiedDiff.split('\n');
+    const rows = [];
+    let delBuffer = [];
+    let addBuffer = [];
+
+    function flushBuffers() {
+        const maxLen = Math.max(delBuffer.length, addBuffer.length);
+        for (let i = 0; i < maxLen; i++) {
+            rows.push({
+                left: delBuffer[i] || { text: '', type: 'empty' },
+                right: addBuffer[i] || { text: '', type: 'empty' },
+            });
+        }
+        delBuffer = [];
+        addBuffer = [];
+    }
+
+    for (const line of lines) {
+        if (line.startsWith('---') || line.startsWith('+++')) continue;
+        if (line.startsWith('@@')) {
+            flushBuffers();
+            rows.push({ left: { text: '···', type: 'info' }, right: { text: '···', type: 'info' } });
+            continue;
+        }
+        if (line.startsWith('-')) { delBuffer.push({ text: line.substring(1), type: 'del' }); continue; }
+        if (line.startsWith('+')) { addBuffer.push({ text: line.substring(1), type: 'add' }); continue; }
+        flushBuffers();
+        const text = line.startsWith(' ') ? line.substring(1) : line;
+        rows.push({ left: { text, type: 'ctx' }, right: { text, type: 'ctx' } });
+    }
+    flushBuffers();
+
+    let html = `<div style="overflow-x: auto; border: 1px solid #2a2b35; border-radius: 6px; max-height: 600px; overflow-y: auto;">`;
+    html += `<table style="width: 100%; border-collapse: collapse; font-family: monospace; font-size: 12px; table-layout: fixed;">`;
+    html += `<colgroup><col style="width:50%"><col style="width:50%"></colgroup>`;
+    html += `<thead style="position: sticky; top: 0; z-index: 1;"><tr>`;
+    html += `<th style="padding: 8px 12px; background: #1e1f2a; color: #f87171; border-bottom: 1px solid #2a2b35; border-right: 1px solid #2a2b35; text-align: left;">← Old</th>`;
+    html += `<th style="padding: 8px 12px; background: #1e1f2a; color: #4ade80; border-bottom: 1px solid #2a2b35; text-align: left;">→ New</th>`;
+    html += `</tr></thead><tbody>`;
+
+    for (const row of rows) {
+        const ls = getStyle(row.left.type);
+        const rs = getStyle(row.right.type);
+        html += `<tr>`;
+        html += `<td style="padding: 2px 8px; background: ${ls.bg}; color: ${ls.color}; border-right: 1px solid #2a2b35; border-bottom: 1px solid #0f1015; white-space: pre-wrap; word-break: break-all;">${escapeHtml(row.left.text)}</td>`;
+        html += `<td style="padding: 2px 8px; background: ${rs.bg}; color: ${rs.color}; border-bottom: 1px solid #0f1015; white-space: pre-wrap; word-break: break-all;">${escapeHtml(row.right.text)}</td>`;
+        html += `</tr>`;
+    }
+
+    html += `</tbody></table></div>`;
+    return html;
+}
+
+
+function buildRow(leftNum, leftText, leftType, rightNum, rightText, rightType) {
+    const ls = getStyle(leftType);
+    const rs = getStyle(rightType);
+
+    let html = `<tr>`;
+    html += `<td style="padding: 1px 6px; background: ${ls.bg}; color: ${ls.numColor}; border-right: 1px solid #1a1b25; border-bottom: 1px solid #0f1015; text-align: right; font-size: 11px; user-select: none; min-width: 30px;">${leftNum}</td>`;
+    html += `<td style="padding: 1px 8px; background: ${ls.bg}; color: ${ls.color}; border-right: 1px solid #2a2b35; border-bottom: 1px solid #0f1015; white-space: pre-wrap; word-break: break-all; vertical-align: top;">${escapeHtml(leftText)}</td>`;
+    html += `<td style="padding: 1px 6px; background: ${rs.bg}; color: ${rs.numColor}; border-right: 1px solid #1a1b25; border-bottom: 1px solid #0f1015; text-align: right; font-size: 11px; user-select: none; min-width: 30px;">${rightNum}</td>`;
+    html += `<td style="padding: 1px 8px; background: ${rs.bg}; color: ${rs.color}; border-bottom: 1px solid #0f1015; white-space: pre-wrap; word-break: break-all; vertical-align: top;">${escapeHtml(rightText)}</td>`;
+    html += `</tr>`;
+    return html;
+}
+
+
+function getStyle(type) {
+    const styles = {
+        del:   { bg: 'rgba(248, 113, 113, 0.08)', color: '#f87171', numColor: '#f8717180' },
+        add:   { bg: 'rgba(74, 222, 128, 0.08)',  color: '#4ade80', numColor: '#4ade8080' },
+        ctx:   { bg: 'transparent',               color: '#a1a1aa', numColor: '#52525b' },
+        info:  { bg: 'rgba(56, 189, 248, 0.05)',  color: '#38bdf8', numColor: '#38bdf880' },
+        empty: { bg: '#0a0b0f',                   color: 'transparent', numColor: 'transparent' },
+    };
+    return styles[type] || styles.ctx;
+}
+
+
+function computeOpcodes(leftLines, rightLines) {
+    const lcs = computeLCS(leftLines, rightLines);
+    const opcodes = [];
+    let i = 0, j = 0, k = 0;
+
+    while (k < lcs.length) {
+        const [li, rj] = lcs[k];
+
+        if (i < li || j < rj) {
+            if (i < li && j < rj) opcodes.push(['replace', i, li, j, rj]);
+            else if (i < li) opcodes.push(['delete', i, li, j, j]);
+            else opcodes.push(['insert', i, i, j, rj]);
+        }
+
+        let matchEnd = k;
+        while (matchEnd < lcs.length - 1) {
+            const [nextLi, nextRj] = lcs[matchEnd + 1];
+            const [curLi, curRj] = lcs[matchEnd];
+            if (nextLi === curLi + 1 && nextRj === curRj + 1) matchEnd++;
+            else break;
+        }
+
+        opcodes.push(['equal', li, lcs[matchEnd][0] + 1, rj, lcs[matchEnd][1] + 1]);
+        i = lcs[matchEnd][0] + 1;
+        j = lcs[matchEnd][1] + 1;
+        k = matchEnd + 1;
+    }
+
+    if (i < leftLines.length || j < rightLines.length) {
+        if (i < leftLines.length && j < rightLines.length) opcodes.push(['replace', i, leftLines.length, j, rightLines.length]);
+        else if (i < leftLines.length) opcodes.push(['delete', i, leftLines.length, j, j]);
+        else opcodes.push(['insert', i, i, j, rightLines.length]);
+    }
+
+    return opcodes;
+}
+
+
+function computeLCS(left, right) {
+    const rightMap = new Map();
+    for (let j = 0; j < right.length; j++) {
+        if (!rightMap.has(right[j])) rightMap.set(right[j], []);
+        rightMap.get(right[j]).push(j);
+    }
+
+    const matches = [];
+    for (let i = 0; i < left.length; i++) {
+        const positions = rightMap.get(left[i]);
+        if (positions) {
+            for (let k = positions.length - 1; k >= 0; k--) {
+                matches.push([i, positions[k]]);
+            }
+        }
+    }
+
+    matches.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    if (matches.length === 0) return [];
+
+    const tails = [];
+    const tailIdx = [];
+    const prev = new Array(matches.length).fill(-1);
+
+    for (let k = 0; k < matches.length; k++) {
+        const [, rj] = matches[k];
+        let lo = 0, hi = tails.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (tails[mid] < rj) lo = mid + 1;
+            else hi = mid;
+        }
+        tails[lo] = rj;
+        tailIdx[lo] = k;
+        prev[k] = lo > 0 ? tailIdx[lo - 1] : -1;
+    }
+
+    const lcs = [];
+    let idx = tailIdx[tails.length - 1];
+    while (idx !== -1) {
+        lcs.push(matches[idx]);
+        idx = prev[idx];
+    }
+
+    lcs.reverse();
+    return lcs;
+}
+
+
+async function loadConfigHistory(ip) {
+    if (!ip) { Toast.warning('Select a device first'); return; }
+    try {
+        const res = await fetch(`/api/config/history/${ip}`);
+        const backups = await res.json();
+
+        if (!Array.isArray(backups) || backups.length === 0) {
+            Toast.warning('No backup history found');
+            return;
+        }
+
+        let html = `<div style="margin-bottom: 12px; font-weight: 600; color: #e4e4e7;">Config Backup History (${backups.length})</div>`;
+        html += `<div style="max-height: 300px; overflow-y: auto;">`;
+
+        backups.forEach((b, idx) => {
+            const date = new Date(b.created_at).toLocaleString();
+            html += `<div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #2a2b35; font-size: 13px;">`;
+            html += `<div><span style="color: #e4e4e7;">${b.config_type}</span><span style="color: #71717a; margin-left: 8px;">${date}</span></div>`;
+            html += `<div style="display: flex; gap: 6px;">`;
+            html += `<button onclick="diffCurrentVsBackup('${ip}', ${b.id})" style="padding: 3px 8px; background: #7c3aed; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Diff vs Current</button>`;
+            if (idx < backups.length - 1) {
+                html += `<button onclick="diffBackups(${backups[idx + 1].id}, ${b.id})" style="padding: 3px 8px; background: #2563eb; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Diff vs Previous</button>`;
+            }
+            html += `</div></div>`;
+        });
+
+        html += `</div>`;
+        const outputEl = document.getElementById('config-output');
+        if (outputEl) outputEl.innerHTML = html;
+
+    } catch (err) {
+        Toast.error('Failed to load history');
+    }
+}
+
+
+function showUnifiedDiff() {
+    document.getElementById('diff-unified').style.display = 'block';
+    document.getElementById('diff-sidebyside').style.display = 'none';
+    document.getElementById('btn-unified').style.background = '#3b82f6';
+    document.getElementById('btn-unified').style.color = 'white';
+    document.getElementById('btn-sidebyside').style.background = '#2a2b35';
+    document.getElementById('btn-sidebyside').style.color = '#a1a1aa';
+}
+
+
+function showSideBySide() {
+    document.getElementById('diff-unified').style.display = 'none';
+    document.getElementById('diff-sidebyside').style.display = 'block';
+    document.getElementById('btn-sidebyside').style.background = '#3b82f6';
+    document.getElementById('btn-sidebyside').style.color = 'white';
+    document.getElementById('btn-unified').style.background = '#2a2b35';
+    document.getElementById('btn-unified').style.color = '#a1a1aa';
+}
+
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+
+// ============================================================
+// INITIALIZE APP
+// ============================================================
 var app = new NetConfigApp();
 app.init();
+
