@@ -1,5 +1,5 @@
 
-# ⚡ NetConfig v1.0.0
+# ⚡ NetConfig v1.1.0
 
 A self-hosted network device management platform built with Flask, Docker, and Redis. Manage Cisco, Arista, Juniper, HP, MikroTik, and Ubiquiti UniFi devices from a single dark-themed web interface.
 
@@ -7,6 +7,34 @@ A self-hosted network device management platform built with Flask, Docker, and R
 ![Flask](https://img.shields.io/badge/Flask-3.0-green)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
+
+---
+
+## 🆕 What's New in v1.1.0
+
+### 🔐 Authentication System
+- Session-based login/logout with Flask-Login
+- First user to register becomes admin automatically
+- Role-based access control: **Admin**, **Operator**, **Viewer**
+- Admin-only user registration (no open signups after first user)
+- Protected API routes with `@login_required` decorator
+- `/auth/me` endpoint for session validation
+
+### 🔀 Configuration Diff Engine
+- **Execute Diff** — live comparison of running vs startup config
+- **Unified view** — color-coded additions (green) and deletions (red) with `@@` hunk headers
+- **Side-by-side view** — full configs displayed with line numbers, LCS-based alignment, and highlighted changes
+- **History & Diff** — browse backup history and compare any backup against current or previous backups
+- **Diff vs Current** — compare any saved backup against the live running config
+- **Stats bar** — addition/deletion counts at a glance
+- **Save to File** — export config output to `.txt`
+
+### 🎨 UI Improvements
+- Removed redundant "Diff" button from config manager
+- Dark-themed styling applied to all config action buttons
+- Consistent `btn btn-secondary` class usage across new controls
+
+---
 
 ## 🎯 Features
 
@@ -27,7 +55,16 @@ A self-hosted network device management platform built with Flask, Docker, and R
 - Pull running/startup configuration via SSH
 - Push configuration commands to devices
 - Configuration backup history (last 20 per device)
+- **Config diff: running vs startup with unified and side-by-side views**
+- **Backup history with diff comparisons**
+- Command validation before push
 - UniFi devices return API-formatted config (networks, ports, PoE)
+
+### Authentication & Access Control
+- Session-based authentication with secure cookies
+- Role-based permissions (Admin / Operator / Viewer)
+- First-user auto-admin provisioning
+- Protected routes — unauthenticated users redirected to login
 
 ### VLAN Management
 - Global VLAN definitions with subnet/gateway
@@ -36,6 +73,13 @@ A self-hosted network device management platform built with Flask, Docker, and R
 - Port map table with live status, VLAN, speed, and description
 - Inline interface description editing
 - Delete global VLANs
+
+### SNMP Monitoring
+- CPU, memory, and temperature polling
+- Interface traffic stats (in/out Mbps)
+- System info (sysName, firmware, serial, uptime)
+- Environment status (PSUs, fans)
+- Alert history with severity levels
 
 ### Network Topology
 - Auto-generated SVG topology diagram
@@ -75,37 +119,7 @@ A self-hosted network device management platform built with Flask, Docker, and R
 - UniFi local admin account (if managing UniFi devices)
 
 ### First-Time Setup
-```
-git clone https://github.com/Skrrrr88/netconfig.git
-cd netconfig
+```bash
+git clone https://github.com/Skrrrr88/Netconfig.git
+cd Netconfig
 bash setup.sh
-```
-
----
-
-## Setup Script 
-
-| Step | What it does |
-|------|-------------|
-| 1 | Auto-generates encryption keys (SECRET_KEY + FERNET_KEY) |
-| 2 | Configures app port, SSH timeout, and worker count |
-| 3 | UniFi controller setup (URL, username, password) — or skip if not applicable |
-| 4 | Default SSH credentials for new devices |
-| 5 | Writes all settings to `.env` |
-| 6 | Optionally builds and launches the Docker stack |
-
-### Re-running Setup
-To reconfigure at any time, just run bash setup.sh again. It will regenerate keys and overwrite the .env file.
-
-    ⚠️ Warning: Re-running setup generates new encryption keys. If you already have devices saved, their stored passwords will become unreadable. Back up your .env file before re-running.
-
---- 
-
-### Common Commands
-| Command | Description |
-|---------|-------------|
-| `sudo docker compose up -d` | Start NetConfig |
-| `sudo docker compose down` | Stop NetConfig |
-| `sudo docker compose logs -f` | View live logs |
-| `sudo docker compose up -d --build` | Rebuild after changes |
-| `sudo docker compose restart netconfig` | Restart app only |
